@@ -226,9 +226,9 @@ async function addPrescriptionToDb(req, patient_obj) {
     var ExerciseArray = req.exercise_arr && req.exercise_arr.length ? req.exercise_arr.slice(0) : [];
     let query = `INSERT INTO mst_prescription
                 (doctor_id, patient_id, prescription_c_o, date_of_evaluation, doctor_advice, instruction_note, exercise_arr, doctor_note, adjunct, patient_obj, 
-                scales_obj, expiry_date, prescription_goals, vas_type)
+                scales_obj, expiry_date, prescription_goals, vas_type, body_part)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-                        ?, ?, ? , ?)`;
+                        ?, ?, ?, ?, ?)`;
     let values = [
         req.doctor_id,
         patient_obj.patient_id,
@@ -243,7 +243,8 @@ async function addPrescriptionToDb(req, patient_obj) {
         JSON.stringify(req.scales_obj),
         req.expiry_date.value,
         req.prescription_goals,
-        req.vas_type
+        req.vas_type,
+        req.bodyPart&&req.bodyPart.length ? JSON.stringify(Object.assign({}, req.bodyPart)) : null,
     ];
     let addPrescription = await db.executevaluesquery(query, values);
     return addPrescription.insertId ? addPrescription.insertId : false
@@ -554,7 +555,7 @@ exports.getPrescriptionById = async (req, res) => {
         let data = await db.executevaluesquery(query, values);
         if (data.length > 0) {
             data[0].date_of_evaluation = moment(data[0].date_of_evaluation).utcOffset("+05:30").format("DD-MMM-YYYY")
-            data[0].expiry_date.value = moment(data[0].expiry_date).utcOffset("+05:30").format("DD-MMM-YYYY")
+            if(data[0].expiry_date) data[0].expiry_date.value = moment(data[0].expiry_date).utcOffset("+05:30").format("DD-MMM-YYYY")
             return { status: true, data: data };
         } else {
             return { status: false, msg: 'Prescription Not Found' };

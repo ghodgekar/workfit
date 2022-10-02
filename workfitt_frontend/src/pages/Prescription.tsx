@@ -27,6 +27,7 @@ let CTScanObject = { advice_name: "CT SCAN" }
 let MRIObject = { advice_name: "MRI" }
 
 const EXERCISE_ACTION = {
+  ADDALL: "addAll",
   ADD: "add",
   CHANGE_REPS: "change-reps",
   CHANGE_SETS: "change-sets",
@@ -85,7 +86,12 @@ const adjunctReducer = (selectedAdjunctArr: any, action: any) => {
 const reducer = (selectedExerciseArr: any, action: any) => {
   let exeIndex
   switch (action.type) {
+    case EXERCISE_ACTION.ADDALL:
+      return action.payload.value;
+
     case EXERCISE_ACTION.ADD:
+      console.log("action.payload.value", action.payload.value);
+
       if (selectedExerciseArr && selectedExerciseArr.length && selectedExerciseArr.some(exercise => exercise.exercise_name == action.payload.exercise_name)) {
         return selectedExerciseArr.filter((exercise) => exercise.exercise_name != action.payload.exercise_name)
       } else {
@@ -143,7 +149,7 @@ const reducer = (selectedExerciseArr: any, action: any) => {
 
 }
 
-export default function Prescription (props) {
+export default function Prescription(props) {
   const history = useHistory();
   let todayDate = format(new Date(), "yyyy-MM-dd")
   let oneWeekDate = format(addDays(new Date(), 7), "yyyy-MM-dd")
@@ -220,10 +226,9 @@ export default function Prescription (props) {
   const [SearchText, setSearchText] = useState("")
   const [isModalOpen, setisModalOpen] = useState(false)
   const [vas_type, setSelectedVas] = useState<string>('VAS');
-  
+
   const [prescriptionListByDrIdArr, setprescriptionListByDrIdArr] = useState([])
-  const [doctorId, setdoctorId] = useState(0);
-  const [prescriptionData, setprescriptionData] = useState([])
+  const [selectedTemplate, setselectedTemplate] = useState({})
 
   function dismiss() {
     setisModalOpen(false)
@@ -290,14 +295,15 @@ export default function Prescription (props) {
     calculateBillTotal();
   }, [bill])
 
-  
+
   useEffect(() => {
     async function fetchData() {
       const { value } = await Preferences.get({ key: 'userInfo' });
       let doctorData = JSON.parse(value);
-      setdoctorId(doctorData.doctor_Id)
       setisLoadingResult(true)
-      let prescriptionListByDrId = await getPrescriptionListByDrId({doctor_id: doctorId })
+      let prescriptionListByDrId = await getPrescriptionListByDrId({ doctor_id: doctorData.doctor_Id })
+      console.log("prescriptionListByDrId", prescriptionListByDrId);
+
       if (prescriptionListByDrId.status) {
         setprescriptionListByDrIdArr(prescriptionListByDrId.data)
       }
@@ -306,17 +312,83 @@ export default function Prescription (props) {
     fetchData();
   }, [])
 
-  useEffect(() => {
-    async function fetchData() {
-      setisLoadingResult(true)
-      let prescription = await getPrescriptionById({prescription_id: '91' })
-      if (prescription.status) {
-        setprescriptionData(prescription.data[0])
+  const setPrescriptionTemplateValues = async (prescriptionObj) => {
+    setValue("prescription_goals", prescriptionObj.prescription_goals || "")
+    setValue("prescription_c_o", prescriptionObj.prescription_c_o || "")
+    setValue("doctor_note", prescriptionObj.doctor_note || "")
+    let bodyPartObj = JSON.parse(prescriptionObj.body_part)
+    let bodyPartArr = Object.values(bodyPartObj);
+    setbodyPart(bodyPartArr)
+
+
+    let imagingAdviceArr = await doctorAdviceByBodyArea({
+      "advice_type": "imaging",
+      "body_area_name": "CHEST & FACE"//bodyPartArr[bodyPartArr.length - 1] 
+    })
+
+    let adviceObj = JSON.parse(prescriptionObj.doctor_advice)
+    let adviceArr = Object.values(adviceObj);
+    let labworkArray = []
+    let imagingArray = []
+    adviceArr.forEach((advice: String) => {
+      if (advice.includes("CT SCAN") || advice.includes("MRI")) {
+        let splitVal = advice.split("-")
+        imagingArray.push(splitVal[0].trim())
       }
-      setisLoadingResult(false)
+      let imagingElement = imagingAdviceArr.data.find((imgElement) => advice == imgElement.advice_name)
+      if (imagingElement) imagingArray.push(imagingElement)
+
+      let labWorkElement = labWorkArr.find((labElement) => advice == labElement.advice_name)
+      if (labWorkElement) labworkArray.push(labWorkElement)
+    })
+    setselectedImaging(imagingArray)
+    setselectedLabWork(labworkArray)
+
+    let adjunct = JSON.parse(prescriptionObj.adjunct)
+    let adjunctArr = Object.values(adjunct);
+    dispatchAdjunct({ type: ADJUNCT_ACTION.ADD, payload: { value: adjunctArr } });
+
+    setinstruction_notes(prescriptionObj.instruction_note)
+
+    let exerciseObj = JSON.parse(prescriptionObj.exercise_arr)
+    let exerciseArray = Object.values(exerciseObj);
+    console.log("exerciseArr", exerciseArray);
+    //   let exerciseResp= await exerciseByBodyArea({ "body_area_name": "CHEST & FACE"
+    //   //  bodyPart[bodyPart.length - 1] 
+    // })
+    let exerciseNameArr=[]
+
+    exerciseArray.forEach((exercise: any) => {
+      exerciseNameArr.push(exercise.exercise_name)
+      delete exercise.audioFilePath
+      // delete exercise.audioFilePath
+      delete exercise.videoObj
+      delete exercise.instructionObj
+      delete exercise.end_date
+      delete exercise.start_date
+    })
+
+    setexerciseInputVal(exerciseNameArr)
+    dispatch({
+      type: EXERCISE_ACTION.ADDALL,
+      payload: { value: exerciseArray}
+    });
+  }
+
+
+  const callTemplateApi = async (val) => {
+    console.log("val====>>>", val);
+
+    setisLoadingResult(true)
+    setselectedTemplate(val)
+    let prescription = await getPrescriptionById({ prescription_id: val.prescription_id + "" })
+    // console.log("prescription===========>>>>", prescription);
+
+    if (prescription.status) {
+      setPrescriptionTemplateValues(prescription.data[0])
     }
-    fetchData();
-  }, [])
+    setisLoadingResult(false)
+  }
 
   const calculateBillTotal = () => {
     let Total = 0;
@@ -349,9 +421,9 @@ export default function Prescription (props) {
 
   useEffect(() => {
     async function fetchData() {
-      if(!props.isAuthed){
+      if (!props.isAuthed) {
         history.push("/login")
-      } 
+      }
       setisLoadingResult(true)
       const { value } = await Preferences.get({ key: 'userInfo' });
       setdoctorData(JSON.parse(value));
@@ -412,7 +484,6 @@ export default function Prescription (props) {
     }
     if (doctorAdvice.length || selectedAdjunct.length || selectedExerciseArr.length) {
       generatePrescription = true
-
     }
 
     //  delete ExpiryDateObj.error
@@ -421,7 +492,7 @@ export default function Prescription (props) {
       doctor_advice: doctorAdvice,
       adjunct: selectedAdjunct,
       instruction_note: instruction_notes,
-      bill: {...bill,billTotal},
+      bill: { ...bill, billTotal },
       scales_obj: {
         ...selectedScale,
         ScaleDays
@@ -430,7 +501,8 @@ export default function Prescription (props) {
       exercise_arr: selectedExerciseArr,
       expiry_date: ExpiryDate,
       generate_prescription: generatePrescription,
-      vas_type: vas_type
+      vas_type: vas_type,
+      bodyPart:bodyPart
     }
     // console.log("prescriptionRequest", JSON.stringify(prescriptionRequest));
     // return
@@ -460,7 +532,7 @@ export default function Prescription (props) {
     setbodyPart(filteredArray)
   }
 
-  const processExerciseData = async (exerciseArray) => {
+  async function processExerciseData(exerciseArray) {
     exerciseArray = exerciseArray.map((exe) => {
       if (selectedExerciseArr.some((element) => element.exercise_name == exe.exercise_name)) {
         return { ...exe, isChecked: true }
@@ -480,6 +552,14 @@ export default function Prescription (props) {
         if (selectedExerciseArr.length) {
           exerciseArray.data = await processExerciseData(exerciseArray.data)
         }
+        else if (exerciseInputVal.length) {
+          exerciseArray.data = exerciseArray.data.forEach((exe) => {
+            if (exerciseInputVal.some((inputVal) => inputVal == exe.exercise_name)) {
+              exe = { ...exe, isChecked: true }
+            }
+          })
+        }
+
         setexerciseArr(exerciseArray.data)
         setexerciseArrCopy(exerciseArray.data)
         setimagingArr(imagingAdviceArr.data)
@@ -529,14 +609,14 @@ export default function Prescription (props) {
   }
 
   function handleExerciseCheckbox(e) {
-    if (e.target.value.isChecked) {
-      setexerciseInputVal(input => input.filter(val => val !== e.target.value.exercise_name))
+    if (e.target?.value?.isChecked) {
+      setexerciseInputVal(input => input.filter(val => val !== e.exercise_name))
     } else {
-      setexerciseInputVal(input => [...input, e.target.value.exercise_name])
+      setexerciseInputVal(input => [...input, e.exercise_name])
     }
     setexerciseArr(exerciseArr => {
       return exerciseArr.map((exercise) => {
-        if (exercise.exercise_name == e.target.value.exercise_name) {
+        if (exercise.exercise_name == e.exercise_name) {
           return { ...exercise, isChecked: exercise.isChecked ? false : true }
         }
         return exercise;
@@ -545,7 +625,7 @@ export default function Prescription (props) {
 
     setexerciseArrCopy(exerciseArrCopy => {
       return exerciseArrCopy.map((exercise) => {
-        if (exercise.exercise_name == e.target.value.exercise_name) {
+        if (exercise.exercise_name == e.exercise_name) {
           return { ...exercise, isChecked: exercise.isChecked ? false : true }
         }
         return exercise;
@@ -555,19 +635,17 @@ export default function Prescription (props) {
     dispatch({
       type: EXERCISE_ACTION.ADD,
       payload: {
-        value: e.target.value,
-        exercise_name: e.target.value.exercise_name
+        value: e,
+        exercise_name: e.exercise_name
       }
     });
 
   }
 
   useEffect(() => {
-    console.log("errors",errors)
-  
-    
+    console.log("errors", errors)
   }, [errors])
-  
+
 
 
   return (
@@ -601,7 +679,7 @@ export default function Prescription (props) {
                       <IonCheckbox
                         slot="start"
                         value={opt}
-                        onClick={(e) => { handleExerciseCheckbox(e) }}
+                        onClick={(e:any) => { handleExerciseCheckbox(e.target.value) }}
                         checked={opt.isChecked}
                       />
                     </IonItem>
@@ -625,9 +703,17 @@ export default function Prescription (props) {
               <section className={formStep == 0 ? "showSection" : "hideSection"}>
                 <IonIcon icon={arrowBackCircleSharp} onClick={() => { history.push("/") }} className="backBtn" />
                 <h1>Add Prescription</h1>
-                
+
+                <IonSelect value={selectedTemplate} className="prescription_dd_input" placeholder='Select Saved Template' cancelText="cancel" okText="submit" onIonChange={e => { callTemplateApi(e.detail.value) }}>
+                  {prescriptionListByDrIdArr.map((template, key) => (
+                    <IonSelectOption key={key} value={template}>
+                      {template.prescription_c_o}
+                    </IonSelectOption>
+                  ))}
+                </IonSelect>
+
                 <Link to="/add-video" className='editLink'>
-                    <IonItem lines="none" className="menuItem" >Add Video</IonItem>
+                  <IonItem lines="none" className="menuItem" >Add Video</IonItem>
                 </Link>
                 <IonItem lines='none' >
                   <IonLabel className="prescription_label" position="stacked">*Name</IonLabel>
@@ -637,7 +723,7 @@ export default function Prescription (props) {
 
                 <IonItem lines='none' >
                   <IonLabel position="stacked" className="prescription_label">Phone No.</IonLabel>
-                  <IonInput className="prescription_input" placeholder='Enter Phone No. Here...' {...register("patient_mobile", )} />
+                  <IonInput className="prescription_input" placeholder='Enter Phone No. Here...' {...register("patient_mobile",)} />
                 </IonItem>
 
                 <IonItem lines='none'>
