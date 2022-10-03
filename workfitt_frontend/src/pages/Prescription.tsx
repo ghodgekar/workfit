@@ -733,6 +733,16 @@ export default function Prescription(props) {
                 {errors?.patient_email?.type.toString() == "required" && <h6 className='prescription_error'>Patient Email is required</h6>}
                 {errors?.patient_email?.type.toString() == "pattern" && errors?.patient_email?.type.toString() !== "required" && <h6 className='prescription_error'>Please Enter Valid Email</h6>}
 
+                <IonItem lines='none'>
+                  <IonLabel className="prescription_label" position="stacked">Secondary Email Id</IonLabel>
+                  <IonInput className="prescription_input" placeholder='Enter Secondary Email Here...' {...register("patient_secondary_email", { pattern: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,3}$/ })} />
+                </IonItem>
+                {/* {errors?.patient_secondary_email?.type.toString() == "required" && <h6 className='prescription_error'>Patient Email is required</h6>} */}
+                {errors?.patient_secondary_email?.type.toString() == "pattern" &&
+                //  errors?.patient_secondary_email?.type.toString() !== "required" && 
+                <h6 className='prescription_error'>Please Enter Valid Email</h6>}
+
+
                 <IonItem lines='none' >
                   <IonLabel className="prescription_label" position="stacked">*Age</IonLabel>
                   <IonInput className="prescription_input" placeholder='Enter Age Here...' type="number" {...register("patient_age", { required: true, min: 0 })} />

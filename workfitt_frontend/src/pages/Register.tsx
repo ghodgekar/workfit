@@ -9,7 +9,7 @@ import Loader from '../components/Loader';
 import { DocumentViewer } from '@ionic-native/document-viewer';
 
 function Register(props) {
-  const { register, handleSubmit, formState: { errors } } = useForm({ mode: "all" });
+  const { register, handleSubmit, getValues, formState: { errors } } = useForm({ mode: "all" });
   const [subscriptionArr, setsubscriptionArr] = useState([])
   const [isLoadingResult, setisLoadingResult] = useState(false)
   const [showToast, setshowToast] = useState(false)
@@ -163,6 +163,24 @@ function Register(props) {
             </IonItem>
             {errors?.doctor_password?.type.toString() == "required" && <h6 className='prescription_error'>Password is required</h6>}
             {errors?.doctor_password?.type.toString() != "required" && errors?.doctor_password?.type.toString() == "minLength" && <h6 className='prescription_error'>Password must be atleast 8 character long</h6>}
+
+            <IonItem lines='none'>
+              <IonLabel className="prescription_label" position="stacked" >Confirm Password</IonLabel>
+              <IonInput className="prescription_input" placeholder='Enter Password Here....' type="password"
+                {...register("doctor_confirm_password",
+                  {
+                    required: true, minLength: 8,
+                    validate: {
+                      matchPassword: (e) => {
+                        console.log("eeee", getValues("doctor_password"));
+                        return e == getValues("doctor_password") || false;
+                      }
+                    }
+                  })} />
+            </IonItem>
+            {errors?.doctor_confirm_password?.type.toString() == "required" && <h6 className='prescription_error'>Password is required</h6>}
+            {/* {errors?.doctor_confirm_password?.type.toString() != "required" && errors?.doctor_confirm_password?.type.toString() == "minLength" && <h6 className='prescription_error'>Password must be atleast 8 character long</h6>} */}
+            {errors.doctor_confirm_password?.type.toString() == "matchPassword" && errors.doctor_confirm_password?.type.toString() !== "required" && <h6 className='prescription_error'>Confirm Password and Password must be same</h6>}
 
             <IonItem lines='none'>
               <IonLabel position="stacked" className="prescription_label"> Email Address</IonLabel>

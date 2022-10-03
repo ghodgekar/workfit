@@ -93,6 +93,7 @@ async function sendMail(req, prescription_id, patient_id) {
         from: config_url.smtp.auth.user,
         to: req.patient_email,
         subject: subject,
+        cc: [req.patient_secondary_email],
         html: html
     };
     if (req.generate_bill) {
@@ -264,18 +265,18 @@ async function insertExerciseTrack(exercise, prescription_id) {
 async function processPatient(req) {
     let query = `SELECT * FROM mst_patient WHERE patient_email = ? AND patient_name = ?`
     let values = [req.patient_email, req.patient_name]
-    let Value1 = [req.patient_name, req.patient_age, req.patient_gender, req.patient_email, req.doctor_id, req.patient_mobile]
+    let Value1 = [req.patient_name, req.patient_age, req.patient_gender, req.patient_email, req.doctor_id, req.patient_mobile, req.patient_secondary_email]
     let checkPatient = await db.executevaluesquery(query, values);
     let patient
     if (checkPatient.length > 0) {
         patient = checkPatient[0]
-        let updateQuery = `UPDATE mst_patient SET patient_name=?,patient_age = ?,patient_gender = ?,patient_email=?,doctor_id = ?,patient_mobile=? WHERE patient_id = ?`;
+        let updateQuery = `UPDATE mst_patient SET patient_name=?,patient_age = ?,patient_gender = ?,patient_email=?,doctor_id = ?,patient_mobile=?,patient_secondary_email=? WHERE patient_id = ?`;
         Value1.push(checkPatient[0].patient_id)
 
         let updatePatientData = await db.executevaluesquery(updateQuery, Value1);
         return patient;
     } else {
-        let insertPatient = 'INSERT INTO mst_patient (patient_name, patient_age, patient_gender, patient_email, doctor_id, patient_mobile, isActive) VALUES (?,?,?,?,?,?,?)';
+        let insertPatient = 'INSERT INTO mst_patient (patient_name, patient_age, patient_gender, patient_email, doctor_id, patient_mobile, patient_secondary_email, isActive) VALUES (?,?,?,?,?,?,?)';
         Value1.push(1)
         let insertPatientData = await db.executevaluesquery(insertPatient, Value1);
         patient = {
@@ -283,6 +284,7 @@ async function processPatient(req) {
             patient_age: req.patient_age,
             patient_gender: req.patient_gender,
             patient_email: req.patient_email,
+            patient_secondary_email: req.patient_secondary_email,
             patient_id: insertPatientData.insertId
         }
 
@@ -290,6 +292,7 @@ async function processPatient(req) {
     }
 
 }
+
 
 async function generateAudio(exercise, fileName) {
 
