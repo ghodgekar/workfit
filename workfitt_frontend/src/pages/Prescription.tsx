@@ -313,12 +313,15 @@ export default function Prescription(props) {
   }, [])
 
   const setPrescriptionTemplateValues = async (prescriptionObj) => {
+  
     setValue("prescription_goals", prescriptionObj.prescription_goals || "")
     setValue("prescription_c_o", prescriptionObj.prescription_c_o || "")
     setValue("doctor_note", prescriptionObj.doctor_note || "")
+    if(prescriptionObj.body_part){
     let bodyPartObj = JSON.parse(prescriptionObj.body_part)
     let bodyPartArr = Object.values(bodyPartObj);
     setbodyPart(bodyPartArr)
+    }
 
 
     let imagingAdviceArr = await doctorAdviceByBodyArea({
@@ -382,7 +385,7 @@ export default function Prescription(props) {
     setisLoadingResult(true)
     setselectedTemplate(val)
     let prescription = await getPrescriptionById({ prescription_id: val.prescription_id + "" })
-    // console.log("prescription===========>>>>", prescription);
+    console.log("prescription===========>>>>", prescription);
 
     if (prescription.status) {
       setPrescriptionTemplateValues(prescription.data[0])
